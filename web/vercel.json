@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/transcript/:id",
+      "destination": "/index.html"
+    }
+  ]
+}
