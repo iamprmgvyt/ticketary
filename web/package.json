@@ -1,0 +1,8 @@
+{
+  "name": "ticketary-web-vercel",
+  "version": "1.0.0",
+  "description": "Vercel Web deployment package for Ticketary transcripts",
+  "dependencies": {
+    "mysql2": "^3.11.0"
+  }
+}
