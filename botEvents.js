@@ -680,8 +680,26 @@ module.exports = (client) => {
 
             // F. Interactive Help category buttons
             else if (customId.startsWith('help_')) {
-                // Already handled in the help block above
-                return;
+                const categoryKey = customId.replace('help_', ''); // 'general', 'setup', or 'tickets'
+                let categoryName = 'General';
+                let emoji = emojis.star;
+                if (categoryKey === 'setup') {
+                    categoryName = 'Setup';
+                    emoji = emojis.setup;
+                } else if (categoryKey === 'tickets') {
+                    categoryName = 'Ticket';
+                    emoji = emojis.ticket;
+                }
+
+                const desc = buildHelpCategoryDesc(categoryKey);
+                
+                const helpEmbed = createEmbed(
+                    `${emoji} Help Desk - ${categoryName} Commands`,
+                    desc,
+                    clientUser
+                );
+
+                return await interaction.update({ embeds: [helpEmbed] });
             }
 
             const guildConfig = await db.read('guilds', guildId);
