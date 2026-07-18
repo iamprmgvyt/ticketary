@@ -4,8 +4,8 @@ const path = require('path');
 const mysql = require('mysql2/promise');
 
 // Load configurations
-const emojis = require('../emojis.json');
-const locales = require('../locales.json');
+const emojis = require('./emojis.json');
+const locales = require('./locales.json');
 const language = process.env.BOT_LANGUAGE || 'en';
 
 const EMBED_COLOR = '#00f0ff';

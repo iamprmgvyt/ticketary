@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Vercel Web deployment package for Ticketary transcripts",
   "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
     "mysql2": "^3.11.0"
   }
 }
