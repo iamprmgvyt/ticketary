@@ -378,7 +378,7 @@ const commands = {
 
             const isGuildPremium = await db.checkPremium(guildId);
             const limitData = await db.getWeeklyLimit(guildId);
-            const WEEKLY_TICKET_LIMIT = 25;
+            const WEEKLY_TICKET_LIMIT = 100;
 
             if (!isGuildPremium && limitData.count >= WEEKLY_TICKET_LIMIT) {
                 const resetTime = moment(limitData.resetTimestamp).format('LLL');
