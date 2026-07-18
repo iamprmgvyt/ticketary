@@ -60,11 +60,13 @@ const db = {
     // Export raw pool for custom queries (e.g. transcript auto-clean)
     pool: pool,
 
-    /**
-     * Resolves raw snowflake IDs for custom emojis to be compatible with ButtonBuilder.setEmoji
-     */
     getButtonEmoji: (emojiVal) => {
         if (!emojiVal) return null;
+        if (typeof emojiVal === 'object') {
+            if (emojiVal.id) return emojiVal.id;
+            return emojiVal.name;
+        }
+        if (typeof emojiVal !== 'string') return emojiVal;
         if (!emojiVal.includes('<') && !emojiVal.includes(':')) {
             return emojiVal;
         }
