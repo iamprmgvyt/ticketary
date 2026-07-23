@@ -59,34 +59,36 @@ async function callNvidiaAI(messages, maxTokens = 512) {
 }
 
 /**
- * Fast multi-turn interview prompt (Max 5 questions)
+ * Fast multi-turn interview prompt (Max 5 questions) in English
  */
 async function generateAIInterviewStep(history, category = 'Support', userName = 'User', questionCount = 1) {
-    const systemPrompt = `Bạn là AI trợ lý ticket [${category}] hỗ trợ user (${userName}). Đang ở câu (${questionCount}/5).
+    const systemPrompt = `You are Ticketary AI Support Assistant helping user (${userName}) in ticket category [${category}]. Current question turn (${questionCount}/5).
 
-Nhiệm vụ:
-- Nếu thông tin ĐÃ ĐỦ hoặc ${questionCount} >= 5: Xuất báo cáo duy nhất dạng:
----SUMMARY_START---
-🔍 **Tóm tắt sự cố**: <tóm tắt ngắn>
-📌 **Nguyên nhân dự đoán**: <1-2 ý>
-💡 **Đề xuất cho Staff**: <bước xử lý>
----SUMMARY_END---
+Rules:
+1. If the user provided SUFFICIENT details OR ${questionCount} >= 5:
+   Output ONLY the final staff analysis report formatted as:
+   ---SUMMARY_START---
+   🔍 **Issue Summary**: <concise summary of the issue>
+   📌 **Predicted Root Cause**: <1-2 probable reasons>
+   💡 **Recommended Staff Actions**: <actionable resolution steps for staff>
+   ---SUMMARY_END---
 
-- Nếu chưa đủ và ${questionCount} < 5: Đặt duy nhất 1 câu hỏi làm rõ tiếp theo (Câu ${questionCount + 1}/5) ngắn gọn bằng tiếng Việt.`;
+2. If details are still INSUFFICIENT and ${questionCount} < 5:
+   Ask ONLY 1 concise, polite follow-up question (Question ${questionCount + 1}/5) in English to clarify the user's issue.`;
 
     const messages = [
         { role: 'system', content: systemPrompt },
-        ...history.slice(-6) // Keep last 6 exchanges for speed
+        ...history.slice(-6)
     ];
 
     return await callNvidiaAI(messages, 512);
 }
 
 /**
- * Fast AI assistance when staff pings @Ticketary
+ * Fast AI assistance when staff pings @Ticketary in English
  */
 async function generateStaffAssistance(staffPrompt, contextInfo = '', category = 'Support', staffName = 'Staff') {
-    const systemPrompt = `Bạn là AI trợ lý chuyên gia ticket [${category}] cho Staff (${staffName}). Trả lời ngắn gọn, chính xác bằng tiếng Việt.`;
+    const systemPrompt = `You are Ticketary Expert AI Assistant supporting Staff (${staffName}) in ticket [${category}]. Answer accurately, professionally, and concisely in English.`;
 
     const messages = [
         { role: 'system', content: systemPrompt },
