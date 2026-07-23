@@ -379,7 +379,7 @@ module.exports = (client) => {
             }
 
             // Trigger AI Auto-Reply on initial user inquiry if AI hasn't replied yet
-            if (ticketData && !ticketData.aiReplied && message.author.id === ticketData.creatorId) {
+            if (ticketData && !ticketData.aiReplied) {
                 ticketData.aiReplied = true;
                 await db.write('tickets', ticketKey, ticketData);
 
