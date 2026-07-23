@@ -21,7 +21,10 @@ const fs = require('fs');
 const { generateStaffAnalysis, generateStaffAssistance } = require('./aiService');
 
 // Dynamic loader for botCommands to support instant hot-reloading
-const getCommands = () => require('./botCommands');
+const getCommands = () => {
+    delete require.cache[require.resolve('./botCommands')];
+    return require('./botCommands');
+};
 
 const PREFIX = '!';
 const ERROR_COLOR = '#ff3e3e';
