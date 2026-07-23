@@ -8,6 +8,8 @@ const {
     EmbedBuilder,
     ChannelSelectMenuBuilder,
     RoleSelectMenuBuilder,
+    StringSelectMenuBuilder,
+    AttachmentBuilder,
     MessageFlags 
 } = require('discord.js');
 const db = require('./database');
@@ -290,6 +292,7 @@ const commands = {
                 supportRoleId: null,
                 memberClosePermission: null,
                 transcriptChannelId: null,
+                transcriptFormat: 'html_web',
                 panelTitle: t('ticket_panel_title') || 'Support Center',
                 panelDescription: t('ticket_panel_desc') || 'Click the button below to open a new support ticket.\n\nA staff member will assist you shortly!',
                 buttonCategories: ['Support', 'Billing', 'Bugs']
@@ -303,7 +306,7 @@ const commands = {
 
             // Step 1: select ticket panel channel (Public/non-ephemeral)
             const embed = createEmbed(
-                '⚙️ Setup Wizard - Step 1 of 4',
+                '⚙️ Setup Wizard - Step 1 of 5',
                 'Select the text channel where the bot will post the ticket creation panel.'
             );
             const select = new ChannelSelectMenuBuilder()
@@ -551,12 +554,20 @@ const commands = {
 
             const creatorUser = await interaction.client.users.fetch(creatorId).catch(() => ({ tag: 'Unknown User#0000', username: 'Unknown User', displayAvatarURL: () => clientUser.displayAvatarURL() }));
 
-            let transcriptURL;
+            const transcriptFormat = guildConfig.transcriptFormat || 'html_web';
+            let transcriptResult;
             try {
-                transcriptURL = await generateTranscript(channel, creatorUser, user, messages, isPremium);
+                transcriptResult = await generateTranscript(channel, creatorUser, user, messages, isPremium, transcriptFormat);
             } catch (err) {
                 console.error('❌ Failed to generate transcript:', err);
-                transcriptURL = 'https://error-generating-transcript.com';
+                transcriptResult = { type: 'web', url: 'https://ticketary.prmgvyt.xyz' };
+            }
+
+            const transcriptURL = transcriptResult.url || 'https://ticketary.prmgvyt.xyz';
+
+            const files = [];
+            if (transcriptResult.type === 'file' && transcriptResult.buffer) {
+                files.push(new AttachmentBuilder(transcriptResult.buffer, { name: transcriptResult.filename }));
             }
 
             // Log to transcript channel
@@ -572,16 +583,17 @@ const commands = {
                             { name: t('transcript_log_field_opened'), value: `<@${creatorId}>`, inline: true },
                             { name: t('transcript_log_field_closed'), value: `<@${user.id}>`, inline: true },
                             { name: t('transcript_log_field_premium'), value: isPremium ? `${emojis.premium} Premium` : `${emojis.star} Free`, inline: true },
+                            { name: 'Format', value: transcriptFormat.toUpperCase().replace('_', ' '), inline: true },
                             { name: t('transcript_log_field_count'), value: messages.length.toString(), inline: true },
                             { name: t('transcript_log_field_link'), value: `[${t('transcript_log_link_text')}](${transcriptURL})`, inline: false }
                         ],
                         footer: { text: `Archived • Ticketary`, iconURL: clientUser.displayAvatarURL() }
                     }
                 );
-                await transcriptChannel.send({ embeds: [logEmbed] }).catch(console.error);
+                await transcriptChannel.send({ embeds: [logEmbed], files }).catch(console.error);
             }
 
-            // DM Creator with transcript link
+            // DM Creator with transcript link & attachment
             try {
                 const dmEmbed = createEmbed(
                     `${emojis.key} ${t('transcript_dm_title')}`,
@@ -593,7 +605,7 @@ const commands = {
                     }
                 );
                 const dmChannel = await creatorUser.createDM();
-                await dmChannel.send({ embeds: [dmEmbed] });
+                await dmChannel.send({ embeds: [dmEmbed], files });
             } catch (e) {
                 console.log(`⚠️ Unable to DM transcript to user ${creatorId}: ${e.message}`);
             }

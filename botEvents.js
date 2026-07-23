@@ -12,7 +12,8 @@ const {
     TextInputBuilder,
     TextInputStyle,
     ChannelType,
-    ActivityType
+    ActivityType,
+    StringSelectMenuBuilder
 } = require('discord.js');
 const db = require('./database');
 const { t, emojis } = db;
@@ -183,7 +184,7 @@ const renderSetupStep = async (interaction, state, step) => {
     }
     
     else if (step === 4) {
-        title = '⚙️ Setup Wizard - Step 4 of 4';
+        title = '⚙️ Setup Wizard - Step 4 of 5';
         description = 'Select the text channel where ticket transcripts will be archived.';
         if (state.transcriptChannelId) {
             description += `\n\n*Current selection: <#${state.transcriptChannelId}>*`;
@@ -199,7 +200,35 @@ const renderSetupStep = async (interaction, state, step) => {
         const row2 = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('setup_back_to_3').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('setup_cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger).setEmoji(db.getButtonEmoji(emojis.close)),
-            new ButtonBuilder().setCustomId('setup_next_to_dash').setLabel('Next ➡️').setStyle(ButtonStyle.Primary).setDisabled(!state.transcriptChannelId)
+            new ButtonBuilder().setCustomId('setup_next_to_5').setLabel('Next ➡️').setStyle(ButtonStyle.Primary).setDisabled(!state.transcriptChannelId)
+        );
+        components = [row1, row2];
+    }
+
+    else if (step === 5) {
+        title = '⚙️ Setup Wizard - Step 5 of 5 (Required)';
+        description = 'Select the required transcript format mode when closing a ticket:';
+        if (state.transcriptFormat) {
+            description += `\n\n*Current selection: **${getFormatLabel(state.transcriptFormat)}***`;
+        }
+
+        const select = new StringSelectMenuBuilder()
+            .setCustomId('setup_step_5_format')
+            .setPlaceholder('Choose transcript output format')
+            .addOptions([
+                { label: '🌐 HTML (Web Online)', description: 'View interactive transcript online on Web link', value: 'html_web' },
+                { label: '📄 HTML (Offline File)', description: 'Standalone offline .html file attachment', value: 'html_file' },
+                { label: '📝 TXT (Text File)', description: 'Formatted plain text .txt log file attachment', value: 'txt' },
+                { label: '📕 PDF (Document)', description: 'Formatted .pdf document report attachment', value: 'pdf' },
+                { label: '📑 DOCS (Markdown .md)', description: 'Formatted .md markdown document attachment', value: 'docs' }
+            ]);
+
+        const row1 = new ActionRowBuilder().addComponents(select);
+
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('setup_back_to_4').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('setup_cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger).setEmoji(db.getButtonEmoji(emojis.close)),
+            new ButtonBuilder().setCustomId('setup_next_to_dash').setLabel('Dashboard ➡️').setStyle(ButtonStyle.Primary).setDisabled(!state.transcriptFormat)
         );
         components = [row1, row2];
     }
@@ -210,6 +239,18 @@ const renderSetupStep = async (interaction, state, step) => {
         await interaction.editReply({ embeds: [embed], components });
     } else {
         await interaction.update({ embeds: [embed], components });
+    }
+};
+
+const getFormatLabel = (fmt) => {
+    switch (fmt) {
+        case 'html_file': return '📄 HTML (Offline File)';
+        case 'txt': return '📝 TXT (Text File)';
+        case 'pdf': return '📕 PDF (Document)';
+        case 'docs': return '📑 DOCS (Markdown .md)';
+        case 'html_web':
+        default:
+            return '🌐 HTML (Web Online)';
     }
 };
 
@@ -227,6 +268,7 @@ const showSetupDashboard = async (interaction, state) => {
             { name: 'Support Role', value: `<@&${state.supportRoleId}>`, inline: true },
             { name: 'Member Close Allowed', value: state.memberClosePermission ? `${emojis.success} Yes` : `${emojis.error} No`, inline: true },
             { name: 'Transcript Channel', value: `<#${state.transcriptChannelId}>`, inline: true },
+            { name: 'Transcript Format', value: getFormatLabel(state.transcriptFormat), inline: true },
             { name: 'Panel Title', value: state.panelTitle, inline: true },
             { name: 'Panel Description', value: state.panelDescription, inline: false },
             { name: 'Button Categories', value: state.buttonCategories.join(', '), inline: true }
@@ -235,7 +277,7 @@ const showSetupDashboard = async (interaction, state) => {
         .setFooter({ text: 'Ticketary Setup Wizard', iconURL: clientUser.displayAvatarURL() });
 
     const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('setup_back_to_4').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('setup_back_to_5').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('setup_finish').setLabel('Save & Deploy Panel').setStyle(ButtonStyle.Success).setEmoji(db.getButtonEmoji(emojis.success)),
         new ButtonBuilder().setCustomId('setup_cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger).setEmoji(db.getButtonEmoji(emojis.close))
     );
@@ -243,7 +285,8 @@ const showSetupDashboard = async (interaction, state) => {
     const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('setup_opt_title').setLabel('Edit Title').setStyle(ButtonStyle.Primary).setEmoji('✏️'),
         new ButtonBuilder().setCustomId('setup_opt_desc').setLabel('Edit Description').setStyle(ButtonStyle.Primary).setEmoji('📝'),
-        new ButtonBuilder().setCustomId('setup_opt_cats').setLabel('Edit Categories').setStyle(ButtonStyle.Primary).setEmoji('🏷️')
+        new ButtonBuilder().setCustomId('setup_opt_cats').setLabel('Edit Categories').setStyle(ButtonStyle.Primary).setEmoji('🏷️'),
+        new ButtonBuilder().setCustomId('setup_opt_format').setLabel('Edit Format').setStyle(ButtonStyle.Secondary).setEmoji('⚙️')
     );
 
     if (interaction.isModalSubmit()) {
@@ -465,8 +508,8 @@ module.exports = (client) => {
             return;
         }
         
-        // Handle User / Channel / Role Select Menu Interactions
-        if (interaction.isUserSelectMenu() || interaction.isChannelSelectMenu() || interaction.isRoleSelectMenu()) {
+        // Handle User / Channel / Role / String Select Menu Interactions
+        if (interaction.isUserSelectMenu() || interaction.isChannelSelectMenu() || interaction.isRoleSelectMenu() || interaction.isStringSelectMenu()) {
             const customId = interaction.customId;
             const channel = interaction.channel;
             const state = getSetupState(interaction.user.id, guild.id);
@@ -489,6 +532,13 @@ module.exports = (client) => {
             else if (customId === 'setup_step_4_transcript') {
                 if (!state) return;
                 state.transcriptChannelId = interaction.values[0];
+                return await renderSetupStep(interaction, state, 5);
+            }
+
+            // D. Setup Step 5 (Transcript Format Select)
+            else if (customId === 'setup_step_5_format') {
+                if (!state) return;
+                state.transcriptFormat = interaction.values[0];
                 return await showSetupDashboard(interaction, state);
             }
 
@@ -631,6 +681,10 @@ module.exports = (client) => {
                 if (!state) return;
                 return await renderSetupStep(interaction, state, 4);
             }
+            else if (customId === 'setup_back_to_5') {
+                if (!state) return;
+                return await renderSetupStep(interaction, state, 5);
+            }
             else if (customId === 'setup_next_to_2') {
                 if (!state) return;
                 return await renderSetupStep(interaction, state, 2);
@@ -643,9 +697,17 @@ module.exports = (client) => {
                 if (!state) return;
                 return await renderSetupStep(interaction, state, 4);
             }
+            else if (customId === 'setup_next_to_5') {
+                if (!state) return;
+                return await renderSetupStep(interaction, state, 5);
+            }
             else if (customId === 'setup_next_to_dash') {
                 if (!state) return;
                 return await showSetupDashboard(interaction, state);
+            }
+            else if (customId === 'setup_opt_format') {
+                if (!state) return;
+                return await renderSetupStep(interaction, state, 5);
             }
 
             // C. Setup Option Modals trigger
@@ -720,6 +782,7 @@ module.exports = (client) => {
                     supportRoleId: state.supportRoleId,
                     memberClosePermission: state.memberClosePermission,
                     transcriptChannelId: state.transcriptChannelId,
+                    transcriptFormat: state.transcriptFormat || 'html_web',
                     panelTitle: state.panelTitle,
                     panelDescription: state.panelDescription,
                     buttonCategories: state.buttonCategories,
