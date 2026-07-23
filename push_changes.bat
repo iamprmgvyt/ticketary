@@ -1,9 +1,16 @@
 @echo off
 cd /d "%~dp0"
-echo 🚀 Staging and pushing latest Ticketary updates to GitHub...
-git add .
-git commit -m "feat: AI multi-turn interview (5 questions max), optional ticket category setup & publish persistence"
-git push origin main
+echo ========================================================
+echo 🚀 Ticketary Auto-Publisher to GitHub
+echo ========================================================
+git add -A
+git commit -m "feat: AI 5-questions auto interview, setup 6 steps with optional category & publish persistence"
+git push https://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@github.com/iamprmgvyt/ticketary.git main
 echo.
-echo ✅ Successfully pushed to GitHub! Now run 'git pull origin main' on your VPS.
+echo ========================================================
+echo ✅ DONE! Changes published to GitHub successfully.
+echo ➡️ Now on your VPS terminal, run:
+echo    git pull origin main
+echo    pm2 restart all
+echo ========================================================
 pause
