@@ -119,7 +119,7 @@ const renderSetupStep = async (interaction, state, step) => {
     let components = [];
 
     if (step === 1) {
-        title = '⚙️ Setup Wizard - Step 1 of 4';
+        title = '⚙️ Setup Wizard - Step 1 of 6';
         description = 'Select the text channel where the bot will post the ticket creation panel.';
         if (state.ticketChannelId) {
             description += `\n\n*Current selection: <#${state.ticketChannelId}>*`;
@@ -140,7 +140,7 @@ const renderSetupStep = async (interaction, state, step) => {
     }
     
     else if (step === 2) {
-        title = '⚙️ Setup Wizard - Step 2 of 4';
+        title = '⚙️ Setup Wizard - Step 2 of 6';
         description = 'Select the role representing your support team. Members with this role can claim and close tickets.';
         if (state.supportRoleId) {
             description += `\n\n*Current selection: <@&${state.supportRoleId}>*`;
@@ -161,7 +161,7 @@ const renderSetupStep = async (interaction, state, step) => {
     }
     
     else if (step === 3) {
-        title = '⚙️ Setup Wizard - Step 3 of 4';
+        title = '⚙️ Setup Wizard - Step 3 of 6';
         description = 'Should regular members (ticket creators) be allowed to close their own tickets?';
         if (state.memberClosePermission !== null) {
             description += `\n\n*Current selection: ${state.memberClosePermission ? 'Yes, allow' : 'No, staff only'}*`;
@@ -184,7 +184,7 @@ const renderSetupStep = async (interaction, state, step) => {
     }
     
     else if (step === 4) {
-        title = '⚙️ Setup Wizard - Step 4 of 5';
+        title = '⚙️ Setup Wizard - Step 4 of 6';
         description = 'Select the text channel where ticket transcripts will be archived.';
         if (state.transcriptChannelId) {
             description += `\n\n*Current selection: <#${state.transcriptChannelId}>*`;
@@ -206,14 +206,39 @@ const renderSetupStep = async (interaction, state, step) => {
     }
 
     else if (step === 5) {
-        title = '⚙️ Setup Wizard - Step 5 of 5 (Required)';
+        title = '⚙️ Setup Wizard - Step 5 of 6 (Optional Category)';
+        description = 'Select a Discord Category where new ticket channels will be created.\n*(If skipped or not selected, the bot will automatically use/create a category named "Ticket")*';
+        if (state.ticketCategoryId) {
+            description += `\n\n*Current selection: <#${state.ticketCategoryId}>*`;
+        } else {
+            description += `\n\n*Current selection: Default ("Ticket")*`;
+        }
+
+        const select = new ChannelSelectMenuBuilder()
+            .setCustomId('setup_step_5_category')
+            .setPlaceholder('Select Discord Category (Optional)')
+            .setChannelTypes([ChannelType.GuildCategory]);
+
+        const row1 = new ActionRowBuilder().addComponents(select);
+
+        const row2 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('setup_back_to_4').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('setup_step_5_skip').setLabel('Skip (Use "Ticket")').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('setup_cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger).setEmoji(db.getButtonEmoji(emojis.close)),
+            new ButtonBuilder().setCustomId('setup_next_to_6').setLabel('Next ➡️').setStyle(ButtonStyle.Primary)
+        );
+        components = [row1, row2];
+    }
+
+    else if (step === 6) {
+        title = '⚙️ Setup Wizard - Step 6 of 6 (Required Format)';
         description = 'Select the required transcript format mode when closing a ticket:';
         if (state.transcriptFormat) {
             description += `\n\n*Current selection: **${getFormatLabel(state.transcriptFormat)}***`;
         }
 
         const select = new StringSelectMenuBuilder()
-            .setCustomId('setup_step_5_format')
+            .setCustomId('setup_step_6_format')
             .setPlaceholder('Choose transcript output format')
             .addOptions([
                 { label: '🌐 HTML (Web Online)', description: 'View interactive transcript online on Web link', value: 'html_web' },
@@ -226,7 +251,7 @@ const renderSetupStep = async (interaction, state, step) => {
         const row1 = new ActionRowBuilder().addComponents(select);
 
         const row2 = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('setup_back_to_4').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('setup_back_to_5').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('setup_cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger).setEmoji(db.getButtonEmoji(emojis.close)),
             new ButtonBuilder().setCustomId('setup_next_to_dash').setLabel('Dashboard ➡️').setStyle(ButtonStyle.Primary).setDisabled(!state.transcriptFormat)
         );
@@ -259,15 +284,18 @@ const getFormatLabel = (fmt) => {
  */
 const showSetupDashboard = async (interaction, state) => {
     const clientUser = interaction.client.user;
+    const categoryText = state.ticketCategoryId ? `<#${state.ticketCategoryId}>` : 'Default ("Ticket")';
+
     const embed = new EmbedBuilder()
         .setColor(EMBED_COLOR)
         .setTitle('⚙️ Setup Wizard - Configuration Dashboard')
-        .setDescription('Review your settings. You can edit optional settings below or deploy the ticket panel immediately.')
+        .setDescription('Review your settings. You can edit settings below or deploy the ticket panel immediately.')
         .addFields([
             { name: 'Ticket Channel', value: `<#${state.ticketChannelId}>`, inline: true },
             { name: 'Support Role', value: `<@&${state.supportRoleId}>`, inline: true },
             { name: 'Member Close Allowed', value: state.memberClosePermission ? `${emojis.success} Yes` : `${emojis.error} No`, inline: true },
             { name: 'Transcript Channel', value: `<#${state.transcriptChannelId}>`, inline: true },
+            { name: 'Ticket Category', value: categoryText, inline: true },
             { name: 'Transcript Format', value: getFormatLabel(state.transcriptFormat), inline: true },
             { name: 'Panel Title', value: state.panelTitle, inline: true },
             { name: 'Panel Description', value: state.panelDescription, inline: false },
@@ -277,7 +305,7 @@ const showSetupDashboard = async (interaction, state) => {
         .setFooter({ text: 'Ticketary Setup Wizard', iconURL: clientUser.displayAvatarURL() });
 
     const row1 = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('setup_back_to_5').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId('setup_back_to_6').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary),
         new ButtonBuilder().setCustomId('setup_finish').setLabel('Save & Deploy Panel').setStyle(ButtonStyle.Success).setEmoji(db.getButtonEmoji(emojis.success)),
         new ButtonBuilder().setCustomId('setup_cancel').setLabel('Cancel').setStyle(ButtonStyle.Danger).setEmoji(db.getButtonEmoji(emojis.close))
     );
@@ -285,14 +313,18 @@ const showSetupDashboard = async (interaction, state) => {
     const row2 = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId('setup_opt_title').setLabel('Edit Title').setStyle(ButtonStyle.Primary).setEmoji('✏️'),
         new ButtonBuilder().setCustomId('setup_opt_desc').setLabel('Edit Description').setStyle(ButtonStyle.Primary).setEmoji('📝'),
-        new ButtonBuilder().setCustomId('setup_opt_cats').setLabel('Edit Categories').setStyle(ButtonStyle.Primary).setEmoji('🏷️'),
+        new ButtonBuilder().setCustomId('setup_opt_cats').setLabel('Edit Categories').setStyle(ButtonStyle.Primary).setEmoji('🏷️')
+    );
+
+    const row3 = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId('setup_opt_category').setLabel('Edit Category').setStyle(ButtonStyle.Secondary).setEmoji('📁'),
         new ButtonBuilder().setCustomId('setup_opt_format').setLabel('Edit Format').setStyle(ButtonStyle.Secondary).setEmoji('⚙️')
     );
 
     if (interaction.isModalSubmit()) {
-        await interaction.update({ embeds: [embed], components: [row1, row2] });
+        await interaction.update({ embeds: [embed], components: [row1, row2, row3] });
     } else {
-        await interaction.update({ embeds: [embed], components: [row1, row2] });
+        await interaction.update({ embeds: [embed], components: [row1, row2, row3] });
     }
 };
 
@@ -535,8 +567,15 @@ module.exports = (client) => {
                 return await renderSetupStep(interaction, state, 5);
             }
 
-            // D. Setup Step 5 (Transcript Format Select)
-            else if (customId === 'setup_step_5_format') {
+            // D. Setup Step 5 (Ticket Category Select)
+            else if (customId === 'setup_step_5_category') {
+                if (!state) return;
+                state.ticketCategoryId = interaction.values[0];
+                return await renderSetupStep(interaction, state, 6);
+            }
+
+            // E. Setup Step 6 (Transcript Format Select)
+            else if (customId === 'setup_step_6_format') {
                 if (!state) return;
                 state.transcriptFormat = interaction.values[0];
                 return await showSetupDashboard(interaction, state);
@@ -665,6 +704,11 @@ module.exports = (client) => {
             }
 
             // B. Setup Navigation Pages (Back / Next)
+            else if (customId === 'setup_step_5_skip') {
+                if (!state) return;
+                state.ticketCategoryId = null;
+                return await renderSetupStep(interaction, state, 6);
+            }
             else if (customId === 'setup_back_to_1') {
                 if (!state) return;
                 return await renderSetupStep(interaction, state, 1);
@@ -685,6 +729,10 @@ module.exports = (client) => {
                 if (!state) return;
                 return await renderSetupStep(interaction, state, 5);
             }
+            else if (customId === 'setup_back_to_6') {
+                if (!state) return;
+                return await renderSetupStep(interaction, state, 6);
+            }
             else if (customId === 'setup_next_to_2') {
                 if (!state) return;
                 return await renderSetupStep(interaction, state, 2);
@@ -701,13 +749,21 @@ module.exports = (client) => {
                 if (!state) return;
                 return await renderSetupStep(interaction, state, 5);
             }
+            else if (customId === 'setup_next_to_6') {
+                if (!state) return;
+                return await renderSetupStep(interaction, state, 6);
+            }
             else if (customId === 'setup_next_to_dash') {
                 if (!state) return;
                 return await showSetupDashboard(interaction, state);
             }
-            else if (customId === 'setup_opt_format') {
+            else if (customId === 'setup_opt_category') {
                 if (!state) return;
                 return await renderSetupStep(interaction, state, 5);
+            }
+            else if (customId === 'setup_opt_format') {
+                if (!state) return;
+                return await renderSetupStep(interaction, state, 6);
             }
 
             // C. Setup Option Modals trigger

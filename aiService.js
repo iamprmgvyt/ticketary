@@ -54,25 +54,28 @@ async function callNvidiaAI(messages, maxTokens = 2048) {
 }
 
 /**
- * Generate initial diagnostic analysis for Admin/Staff when user posts their issue.
+ * Handles the multi-turn AI Auto-Interview (Up to 5 questions) for ticket creators.
  */
-async function generateStaffAnalysis(userMessage, category = 'Support', userName = 'User') {
-    const systemPrompt = `Bạn là Trợ Lý AI Chẩn Đoán Kỹ Thuật của Ticketary Bot.
-Nhiệm vụ của bạn là phân tích mô tả sự cố của người dùng và tạo Báo Cáo Chẩn Đoán & Khuyên NGHỊ dành cho Admin / Support Staff.
-- Thể loại vé: ${category}
-- Người gửi vé: ${userName}
+async function generateAIInterviewStep(history, category = 'Support', userName = 'User', questionCount = 1) {
+    const systemPrompt = `Bạn là Trợ Lý AI Hỗ Trợ Tự Động của Ticketary đang thu thập thông tin từ người dùng (${userName}) trong vé [${category}].
+Lần trao đổi hiện tại: ${questionCount}/5.
 
-Định dạng báo cáo dành riêng cho Staff:
-1. 🔍 **Tóm tắt sự cố người dùng**: Tóm tắt ngắn gọn vấn đề/thắc mắc.
-2. 📌 **Dự đoán nguyên nhân**: Đưa ra 1-2 nguyên nhân chính gây ra vấn đề này.
-3. 💡 **Hướng giải quyết đề xuất cho Staff**: Các bước cụ thể hỗ trợ Staff xử lý nhanh cho người dùng.
-4. ❓ **Thông tin cần hỏi thêm (nếu có)**: Các câu hỏi Staff nên hỏi thêm nếu người dùng mô tả chưa đủ.
+Quy tắc làm việc:
+1. Nếu thông tin người dùng cung cấp ĐÃ ĐỦ HOẶC ${questionCount} >= 5:
+   Hãy xuất Báo Cáo Phân Tích Kỹ Thuật Dành Cho Staff theo đúng cấu trúc bên dưới (và KHÔNG hỏi thêm nữa):
+   ---SUMMARY_START---
+   🔍 **Tóm tắt sự cố**: (tóm tắt nội dung lỗi)
+   📌 **Dự đoán nguyên nhân**: (1-2 nguyên nhân khả thi)
+   💡 **Hướng xử lý đề xuất cho Staff**: (các bước hỗ trợ cụ thể)
+   ❓ **Thông tin bổ sung cho Staff**: (nếu có)
+   ---SUMMARY_END---
 
-Giữ báo cáo chuyên nghiệp, ngắn gọn, súc tích (dưới 350 từ) bằng tiếng Việt.`;
+2. Nếu thông tin người dùng cung cấp CÒN THIẾU và ${questionCount} < 5:
+   Hãy đưa ra 1 câu hỏi làm rõ tiếp theo (Câu hỏi ${questionCount + 1}/5) thật ngắn gọn, lịch sự bằng tiếng Việt (hoặc ngôn ngữ người dùng). Thân thiện và hỗ trợ người dùng tối đa.`;
 
     const messages = [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: userMessage }
+        ...history
     ];
 
     return await callNvidiaAI(messages, 2048);
@@ -95,6 +98,6 @@ ${contextInfo ? `Ngữ cảnh vé gần đây: ${contextInfo}` : ''}`;
 }
 
 module.exports = { 
-    generateStaffAnalysis,
+    generateAIInterviewStep,
     generateStaffAssistance
 };

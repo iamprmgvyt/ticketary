@@ -285,17 +285,20 @@ const commands = {
                 return await sendResponse(interaction, err, isSlash, true);
             }
 
-            // Initialize setup state for this user
+            // Pre-fill existing setup state if server was configured previously
+            const existingConfig = await db.read('guilds', guild.id);
             const key = `${user.id}_${guild.id}`;
             const state = {
-                ticketChannelId: null,
-                supportRoleId: null,
-                memberClosePermission: null,
-                transcriptChannelId: null,
-                transcriptFormat: 'html_web',
-                panelTitle: t('ticket_panel_title') || 'Support Center',
-                panelDescription: t('ticket_panel_desc') || 'Click the button below to open a new support ticket.\n\nA staff member will assist you shortly!',
-                buttonCategories: ['Support', 'Billing', 'Bugs']
+                ticketChannelId: existingConfig?.ticketChannelId || null,
+                supportRoleId: existingConfig?.supportRoleId || null,
+                memberClosePermission: existingConfig?.memberClosePermission ?? null,
+                transcriptChannelId: existingConfig?.transcriptChannelId || null,
+                ticketCategoryId: existingConfig?.ticketCategoryId || null,
+                transcriptFormat: existingConfig?.transcriptFormat || 'html_web',
+                panelTitle: existingConfig?.panelTitle || t('ticket_panel_title') || 'Support Center',
+                panelDescription: existingConfig?.panelDescription || t('ticket_panel_desc') || 'Click the button below to open a new support ticket.\n\nA staff member will assist you shortly!',
+                buttonCategories: existingConfig?.buttonCategories || ['Support', 'Billing', 'Bugs'],
+                panelMessageId: existingConfig?.panelMessageId || null
             };
             
             // Store it globally in database module setupState map
@@ -306,7 +309,7 @@ const commands = {
 
             // Step 1: select ticket panel channel (Public/non-ephemeral)
             const embed = createEmbed(
-                '⚙️ Setup Wizard - Step 1 of 5',
+                '⚙️ Setup Wizard - Step 1 of 6',
                 'Select the text channel where the bot will post the ticket creation panel.'
             );
             const select = new ChannelSelectMenuBuilder()
