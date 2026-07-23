@@ -451,7 +451,6 @@ app.get('/', async (req, res) => {
                 </div>
                 <ul class="nav-links">
                     <li><a href="#features">Features</a></li>
-                    <li><a href="https://discord.gg/invite" target="_blank">Support Server</a></li>
                 </ul>
                 <a class="btn-invite" href="https://discord.com/api/oauth2/authorize?client_id=${process.env.CLIENT_ID || '1446486016721424394'}&permissions=8&scope=bot%20applications.commands" target="_blank">Invite Bot</a>
             </header>
@@ -462,7 +461,6 @@ app.get('/', async (req, res) => {
                 <p>Provide premium, high-speed support to your Discord community. Generate beautiful online transcripts, configure automatic weekly cleanups, and manage staff operations seamlessly.</p>
                 <div class="hero-ctas">
                     <a class="btn-primary-large" href="https://discord.com/api/oauth2/authorize?client_id=${process.env.CLIENT_ID || '1446486016721424394'}&permissions=8&scope=bot%20applications.commands" target="_blank">Invite Ticketary</a>
-                    <a class="btn-secondary" href="https://discord.gg/invite" target="_blank">Join Support Server</a>
                 </div>
             </section>
 

@@ -17,7 +17,7 @@ const {
 const db = require('./database');
 const { t, emojis } = db;
 const fs = require('fs');
-const path = require('path');
+const { generateAIReply } = require('./aiService');
 
 // Dynamic loader for botCommands to support instant hot-reloading
 const getCommands = () => require('./botCommands');
@@ -330,34 +330,78 @@ module.exports = (client) => {
         ensureGuildEmojis(guild).catch(err => console.error(`Error checking emojis on guildCreate for ${guild.name}:`, err));
     });
 
-    // --- 2. MESSAGE CREATE EVENT (Prefix Commands) ---
+    // --- 2. MESSAGE CREATE EVENT (Prefix Commands & AI Auto-Reply) ---
     client.on(Events.MessageCreate, async (message) => {
-        if (message.author.bot || !message.content.startsWith(PREFIX) || !message.guild) return;
+        if (message.author.bot || !message.guild) return;
 
-        const args = message.content.slice(PREFIX.length).trim().split(/ +/);
-        const commandName = args.shift().toLowerCase();
+        // A. Handle Prefix Commands
+        if (message.content.startsWith(PREFIX)) {
+            const args = message.content.slice(PREFIX.length).trim().split(/ +/);
+            const commandName = args.shift().toLowerCase();
 
-        const command = Object.values(getCommands()).find(cmd => 
-            cmd.name === commandName || (cmd.aliases && cmd.aliases.includes(commandName))
-        );
+            const command = Object.values(getCommands()).find(cmd => 
+                cmd.name === commandName || (cmd.aliases && cmd.aliases.includes(commandName))
+            );
 
-        if (!command || !command.prefix) return;
+            if (!command || !command.prefix) return;
 
-        if (command.requiredPermissions) {
-            if (!message.member.permissions.has(command.requiredPermissions)) {
-                return message.reply({ 
-                    embeds: [errorEmbed(t('error_no_permission'), client.user)],
+            if (command.requiredPermissions) {
+                if (!message.member.permissions.has(command.requiredPermissions)) {
+                    return message.reply({ 
+                        embeds: [errorEmbed(t('error_no_permission'), client.user)],
+                    }).catch(() => {});
+                }
+            }
+
+            try {
+                await command.execute(message, args, false);
+            } catch (error) {
+                console.error(`❌ Prefix Command Error (${commandName}):`, error);
+                message.reply({ 
+                    embeds: [errorEmbed(t('error_no_permission').split('.')[0] + ' Error', client.user)] 
                 }).catch(() => {});
             }
+            return;
         }
 
+        // B. Handle AI Auto-Reply Mode in Ticket Channels
         try {
-            await command.execute(message, args, false);
-        } catch (error) {
-            console.error(`❌ Prefix Command Error (${commandName}):`, error);
-            message.reply({ 
-                embeds: [errorEmbed(t('error_no_permission').split('.')[0] + ' Error', client.user)] 
-            }).catch(() => {});
+            const allTickets = await db.read('tickets', null) || {};
+            let ticketKey = null;
+            let ticketData = null;
+
+            for (const [key, val] of Object.entries(allTickets)) {
+                if (val && val.channelId === message.channel.id) {
+                    ticketKey = key;
+                    ticketData = val;
+                    break;
+                }
+            }
+
+            // Trigger AI Auto-Reply on initial user inquiry if AI hasn't replied yet
+            if (ticketData && !ticketData.aiReplied && message.author.id === ticketData.creatorId) {
+                ticketData.aiReplied = true;
+                await db.write('tickets', ticketKey, ticketData);
+
+                message.channel.sendTyping().catch(() => {});
+
+                const aiResponse = await generateAIReply(message.content, ticketData.category || 'Support', message.author.username);
+
+                if (aiResponse) {
+                    const aiEmbed = createEmbed(
+                        `🤖 Ticketary AI Assistant - Initial Analysis`,
+                        aiResponse,
+                        {
+                            author: { name: 'AI Auto-Reply Mode', iconURL: client.user.displayAvatarURL() },
+                            footer: { text: 'NVIDIA AI Engine • Support Staff will assist shortly if needed', iconURL: client.user.displayAvatarURL() },
+                            color: '#00f0ff'
+                        }
+                    );
+                    await message.channel.send({ embeds: [aiEmbed] }).catch(console.error);
+                }
+            }
+        } catch (err) {
+            console.error('❌ AI Auto-Reply Handler Error:', err.message);
         }
     });
 

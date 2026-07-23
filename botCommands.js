@@ -245,11 +245,6 @@ const commands = {
                     .setURL(inviteUrl)
                     .setEmoji(db.getButtonEmoji(emojis.plus)),
                 new ButtonBuilder()
-                    .setLabel('Support Server')
-                    .setStyle(ButtonStyle.Link)
-                    .setURL(supportUrl)
-                    .setEmoji(db.getButtonEmoji(emojis.support)),
-                new ButtonBuilder()
                     .setLabel('Website')
                     .setStyle(ButtonStyle.Link)
                     .setURL(webUrl)
