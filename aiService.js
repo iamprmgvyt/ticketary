@@ -16,12 +16,12 @@ async function callNvidiaAI(messages, maxTokens = 512) {
         return null;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout limit
-
     for (const modelName of MODELS) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s per model limit
+
         try {
-            console.log(`🤖 AI Engine: Calling fast model "${modelName}"...`);
+            console.log(`🤖 AI Engine: Calling model "${modelName}"...`);
             const response = await fetch(NVIDIA_BASE_URL, {
                 method: 'POST',
                 headers: {
@@ -44,7 +44,7 @@ async function callNvidiaAI(messages, maxTokens = 512) {
                 const data = await response.json();
                 const aiContent = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : null;
                 if (aiContent && aiContent.trim().length > 0) {
-                    console.log(`⚡ AI Engine: Fast response received from "${modelName}".`);
+                    console.log(`⚡ AI Engine: Response received from "${modelName}".`);
                     return aiContent.trim();
                 }
             } else {
@@ -52,6 +52,7 @@ async function callNvidiaAI(messages, maxTokens = 512) {
                 console.warn(`⚠️ Model "${modelName}" error [${response.status}]: ${errText}`);
             }
         } catch (err) {
+            clearTimeout(timeoutId);
             console.error(`❌ Model "${modelName}" error:`, err.message);
         }
     }
