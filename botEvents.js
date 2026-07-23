@@ -17,7 +17,7 @@ const {
 const db = require('./database');
 const { t, emojis } = db;
 const fs = require('fs');
-const { generateAIReply } = require('./aiService');
+const { generateStaffAnalysis, generateStaffAssistance } = require('./aiService');
 
 // Dynamic loader for botCommands to support instant hot-reloading
 const getCommands = () => require('./botCommands');
@@ -364,8 +364,10 @@ module.exports = (client) => {
             return;
         }
 
-        // B. Handle AI Auto-Reply Mode in Ticket Channels
+        // B. Handle AI Diagnostic Analysis & On-Demand Bot Mention Assistance in Ticket Channels
         try {
+            const isBotMentioned = message.mentions.has(client.user);
+            
             const allTickets = await db.read('tickets', null) || {};
             let ticketKey = null;
             let ticketData = null;
@@ -378,30 +380,53 @@ module.exports = (client) => {
                 }
             }
 
-            // Trigger AI Auto-Reply on initial user inquiry if AI hasn't replied yet
-            if (ticketData && !ticketData.aiReplied) {
-                ticketData.aiReplied = true;
+            // Scenario 1: Admin/Staff or User mentions/pings the Bot directly with a question
+            if (isBotMentioned) {
+                const cleanPrompt = message.content.replace(new RegExp(`<@!?${client.user.id}>`, 'g'), '').trim();
+                if (cleanPrompt.length > 0) {
+                    message.channel.sendTyping().catch(() => {});
+                    const category = ticketData ? (ticketData.category || 'Support') : 'General';
+                    const aiResponse = await generateStaffAssistance(cleanPrompt, '', category, message.author.username);
+
+                    if (aiResponse) {
+                        const aiEmbed = createEmbed(
+                            `🤖 Ticketary AI Assistant Response`,
+                            aiResponse,
+                            {
+                                author: { name: `Assisting ${message.author.username}`, iconURL: message.author.displayAvatarURL() },
+                                footer: { text: 'NVIDIA AI Engine • On-Demand Ticket Assistant', iconURL: client.user.displayAvatarURL() },
+                                color: '#00f0ff'
+                            }
+                        );
+                        return await message.reply({ embeds: [aiEmbed] }).catch(console.error);
+                    }
+                }
+            }
+
+            // Scenario 2: Initial user message in ticket -> Generate Analytic Summary for Admin/Staff (Then PAUSE auto-reply)
+            if (ticketData && !ticketData.aiAnalyzed && !isBotMentioned) {
+                ticketData.aiAnalyzed = true;
                 await db.write('tickets', ticketKey, ticketData);
 
                 message.channel.sendTyping().catch(() => {});
 
-                const aiResponse = await generateAIReply(message.content, ticketData.category || 'Support', message.author.username);
+                const aiAnalysis = await generateStaffAnalysis(message.content, ticketData.category || 'Support', message.author.username);
 
-                if (aiResponse) {
-                    const aiEmbed = createEmbed(
-                        `🤖 Ticketary AI Assistant - Initial Analysis`,
-                        aiResponse,
+                if (aiAnalysis) {
+                    const analysisEmbed = createEmbed(
+                        `📊 AI Issue Analysis & Diagnostic (For Admin / Staff)`,
+                        aiAnalysis,
                         {
-                            author: { name: 'AI Auto-Reply Mode', iconURL: client.user.displayAvatarURL() },
-                            footer: { text: 'NVIDIA AI Engine • Support Staff will assist shortly if needed', iconURL: client.user.displayAvatarURL() },
-                            color: '#00f0ff'
+                            author: { name: 'AI Diagnostic Engine', iconURL: client.user.displayAvatarURL() },
+                            footer: { text: 'NVIDIA AI Engine • Analysis generated for Staff. Auto-reply paused. Mention @Ticketary for AI assistance.', iconURL: client.user.displayAvatarURL() },
+                            color: '#5865f2'
                         }
                     );
-                    await message.channel.send({ embeds: [aiEmbed] }).catch(console.error);
+                    await message.channel.send({ embeds: [analysisEmbed] }).catch(console.error);
                 }
             }
         } catch (err) {
-            console.error('❌ AI Auto-Reply Handler Error:', err.message);
+            console.error('❌ AI Ticket Handler Error:', err.message);
         }
     });
 

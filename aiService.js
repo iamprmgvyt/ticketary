@@ -9,30 +9,16 @@ const MODELS = [
     'mistralai/mistral-7b-instruct-v0.3'
 ];
 
-/**
- * Generate an AI Auto-Reply for ticket queries using NVIDIA NIM API.
- */
-async function generateAIReply(userMessage, category = 'Support', userName = 'User') {
+async function callNvidiaAI(messages, maxTokens = 2048) {
     const apiKey = process.env.NVIDIA_API_KEY || NVIDIA_API_KEY;
     if (!apiKey) {
         console.error('❌ AI Service: NVIDIA_API_KEY is missing.');
         return null;
     }
 
-    const systemPrompt = `Bạn là Trợ Lý AI Hỗ Trợ Tự Động của Ticketary (Discord Ticket Bot).
-Nhiệm vụ của bạn là phân tích và phản hồi ban đầu khi người dùng vừa gửi câu hỏi trong vé hỗ trợ (Ticket).
-- Thể loại vé: ${category}
-- Tên người dùng: ${userName}
-- Quy tắc phản hồi:
-1. Chào hỏi người dùng lịch sự, thân thiện.
-2. Phân tích chi tiết câu hỏi/vấn đề mà người dùng vừa mô tả.
-3. Cung cấp câu trả lời, giải pháp hoặc các bước hướng dẫn ban đầu thật chính xác, ngắn gọn, dễ hiểu bằng tiếng Việt (hoặc cùng ngôn ngữ với người dùng).
-4. Nhắc người dùng rằng đội ngũ Hỗ trợ (Support Staff) đã được thông báo và sẽ đồng hành hỗ trợ thêm nếu họ cần.
-5. Định dạng câu trả lời đẹp mắt bằng Markdown (bullet points, bold text). Giữ độ dài súc tích (dưới 350 từ).`;
-
     for (const modelName of MODELS) {
         try {
-            console.log(`🤖 AI Auto-Reply: Trying model "${modelName}"...`);
+            console.log(`🤖 AI Engine: Requesting model "${modelName}"...`);
             const response = await fetch(NVIDIA_BASE_URL, {
                 method: 'POST',
                 headers: {
@@ -41,13 +27,10 @@ Nhiệm vụ của bạn là phân tích và phản hồi ban đầu khi ngườ
                 },
                 body: JSON.stringify({
                     model: modelName,
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userMessage }
-                    ],
+                    messages: messages,
                     temperature: 0.7,
                     top_p: 0.95,
-                    max_tokens: 2048,
+                    max_tokens: maxTokens,
                     stream: false
                 })
             });
@@ -56,7 +39,7 @@ Nhiệm vụ của bạn là phân tích và phản hồi ban đầu khi ngườ
                 const data = await response.json();
                 const aiContent = data.choices && data.choices[0] && data.choices[0].message ? data.choices[0].message.content : null;
                 if (aiContent && aiContent.trim().length > 0) {
-                    console.log(`✅ AI Auto-Reply: Successfully generated response using model "${modelName}".`);
+                    console.log(`✅ AI Engine: Successfully generated response using "${modelName}".`);
                     return aiContent;
                 }
             } else {
@@ -67,8 +50,51 @@ Nhiệm vụ của bạn là phân tích và phản hồi ban đầu khi ngườ
             console.error(`❌ Model "${modelName}" error:`, err.message);
         }
     }
-
     return null;
 }
 
-module.exports = { generateAIReply };
+/**
+ * Generate initial diagnostic analysis for Admin/Staff when user posts their issue.
+ */
+async function generateStaffAnalysis(userMessage, category = 'Support', userName = 'User') {
+    const systemPrompt = `Bạn là Trợ Lý AI Chẩn Đoán Kỹ Thuật của Ticketary Bot.
+Nhiệm vụ của bạn là phân tích mô tả sự cố của người dùng và tạo Báo Cáo Chẩn Đoán & Khuyên NGHỊ dành cho Admin / Support Staff.
+- Thể loại vé: ${category}
+- Người gửi vé: ${userName}
+
+Định dạng báo cáo dành riêng cho Staff:
+1. 🔍 **Tóm tắt sự cố người dùng**: Tóm tắt ngắn gọn vấn đề/thắc mắc.
+2. 📌 **Dự đoán nguyên nhân**: Đưa ra 1-2 nguyên nhân chính gây ra vấn đề này.
+3. 💡 **Hướng giải quyết đề xuất cho Staff**: Các bước cụ thể hỗ trợ Staff xử lý nhanh cho người dùng.
+4. ❓ **Thông tin cần hỏi thêm (nếu có)**: Các câu hỏi Staff nên hỏi thêm nếu người dùng mô tả chưa đủ.
+
+Giữ báo cáo chuyên nghiệp, ngắn gọn, súc tích (dưới 350 từ) bằng tiếng Việt.`;
+
+    const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userMessage }
+    ];
+
+    return await callNvidiaAI(messages, 2048);
+}
+
+/**
+ * Generate AI assistance when Admin/Staff pings the bot in a ticket channel.
+ */
+async function generateStaffAssistance(staffPrompt, contextInfo = '', category = 'Support', staffName = 'Staff') {
+    const systemPrompt = `Bạn là Trợ Lý AI Chuyên Gia của Ticketary đang hỗ trợ Admin / Support Staff (${staffName}) trong vé hỗ trợ [${category}].
+Hãy trả lời trực tiếp câu hỏi/yêu cầu của Staff một cách chính xác, ngắn gọn, đưa ra giải pháp kỹ thuật hoặc câu trả lời phù hợp nhất bằng tiếng Việt.
+${contextInfo ? `Ngữ cảnh vé gần đây: ${contextInfo}` : ''}`;
+
+    const messages = [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: staffPrompt }
+    ];
+
+    return await callNvidiaAI(messages, 2048);
+}
+
+module.exports = { 
+    generateStaffAnalysis,
+    generateStaffAssistance
+};
