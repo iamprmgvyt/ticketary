@@ -409,12 +409,32 @@ const commands = {
                 { id: interaction.client.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
             ];
 
+            let parentCategoryId = guildConfig.ticketCategoryId || null;
+
+            // If no category selected, find or auto-create a Discord category named "Ticket"
+            if (!parentCategoryId) {
+                let defaultCategory = interaction.guild.channels.cache.find(
+                    c => c.type === ChannelType.GuildCategory && c.name.toLowerCase() === 'ticket'
+                );
+
+                if (!defaultCategory) {
+                    defaultCategory = await interaction.guild.channels.create({
+                        name: 'Ticket',
+                        type: ChannelType.GuildCategory
+                    }).catch(e => console.error('❌ Failed to create default Ticket category:', e.message));
+                }
+
+                if (defaultCategory) {
+                    parentCategoryId = defaultCategory.id;
+                }
+            }
+
             let channel;
             try {
                 channel = await interaction.guild.channels.create({
                     name: channelName,
                     type: ChannelType.GuildText,
-                    parent: guildConfig.ticketCategoryId || null,
+                    parent: parentCategoryId,
                     permissionOverwrites: permissionOverwrites
                 });
             } catch (error) {
