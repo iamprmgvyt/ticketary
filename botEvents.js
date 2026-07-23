@@ -18,7 +18,7 @@ const {
 const db = require('./database');
 const { t, emojis } = db;
 const fs = require('fs');
-const { generateStaffAnalysis, generateStaffAssistance } = require('./aiService');
+const { generateAIInterviewStep, generateStaffAssistance } = require('./aiService');
 
 // Dynamic loader for botCommands to support instant hot-reloading
 const getCommands = () => {
@@ -481,26 +481,57 @@ module.exports = (client) => {
                 }
             }
 
-            // Scenario 2: Initial user message in ticket -> Generate Analytic Summary for Admin/Staff (Then PAUSE auto-reply)
-            if (ticketData && !ticketData.aiAnalyzed && !isBotMentioned) {
-                ticketData.aiAnalyzed = true;
-                await db.write('tickets', ticketKey, ticketData);
+            // Scenario 2: Interactive AI Multi-Turn Interview (Up to 5 questions) for ticket creator
+            if (ticketData && !ticketData.aiAnalyzed && !isBotMentioned && message.author.id === ticketData.creatorId) {
+                ticketData.aiQuestionCount = (ticketData.aiQuestionCount || 0) + 1;
+                if (!ticketData.aiHistory) ticketData.aiHistory = [];
+
+                ticketData.aiHistory.push({ role: 'user', content: message.content });
 
                 message.channel.sendTyping().catch(() => {});
 
-                const aiAnalysis = await generateStaffAnalysis(message.content, ticketData.category || 'Support', message.author.username);
+                const aiOutput = await generateAIInterviewStep(
+                    ticketData.aiHistory,
+                    ticketData.category || 'Support',
+                    message.author.username,
+                    ticketData.aiQuestionCount
+                );
 
-                if (aiAnalysis) {
-                    const analysisEmbed = createEmbed(
-                        `📊 AI Issue Analysis & Diagnostic (For Admin / Staff)`,
-                        aiAnalysis,
-                        {
-                            author: { name: 'AI Diagnostic Engine', iconURL: client.user.displayAvatarURL() },
-                            footer: { text: 'NVIDIA AI Engine • Analysis generated for Staff. Auto-reply paused. Mention @Ticketary for AI assistance.', iconURL: client.user.displayAvatarURL() },
-                            color: '#5865f2'
-                        }
-                    );
-                    await message.channel.send({ embeds: [analysisEmbed] }).catch(console.error);
+                if (aiOutput) {
+                    if (aiOutput.includes('---SUMMARY_START---') || ticketData.aiQuestionCount >= 5) {
+                        ticketData.aiAnalyzed = true;
+                        await db.write('tickets', ticketKey, ticketData);
+
+                        const cleanSummary = aiOutput
+                            .replace('---SUMMARY_START---', '')
+                            .replace('---SUMMARY_END---', '')
+                            .trim();
+
+                        const analysisEmbed = createEmbed(
+                            `📊 AI Issue Analysis & Diagnostic (For Admin / Staff)`,
+                            cleanSummary,
+                            {
+                                author: { name: 'AI Diagnostic Engine', iconURL: client.user.displayAvatarURL() },
+                                footer: { text: 'NVIDIA AI Engine • Ticket analysis complete. Auto-reply paused. Mention @Ticketary for assistance.', iconURL: client.user.displayAvatarURL() },
+                                color: '#5865f2'
+                            }
+                        );
+                        await message.channel.send({ embeds: [analysisEmbed] }).catch(console.error);
+                    } else {
+                        ticketData.aiHistory.push({ role: 'assistant', content: aiOutput });
+                        await db.write('tickets', ticketKey, ticketData);
+
+                        const questionEmbed = createEmbed(
+                            `🤖 Ticketary AI Assistant (Question ${ticketData.aiQuestionCount}/5)`,
+                            aiOutput,
+                            {
+                                author: { name: 'AI Auto-Inquiry', iconURL: client.user.displayAvatarURL() },
+                                footer: { text: `Question ${ticketData.aiQuestionCount} of 5 • Reply below to provide details`, iconURL: client.user.displayAvatarURL() },
+                                color: '#00f0ff'
+                            }
+                        );
+                        await message.channel.send({ content: `<@${message.author.id}>`, embeds: [questionEmbed] }).catch(console.error);
+                    }
                 }
             }
         } catch (err) {
