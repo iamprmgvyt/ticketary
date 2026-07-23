@@ -1,0 +1,14 @@
+# Dependencies
+node_modules/
+
+# Environment configurations
+.env
+.env.local
+
+# Local execution scripts
+push_changes.bat
+do_push.js
+
+# Logs and system files
+*.log
+.DS_Store

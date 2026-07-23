@@ -3,9 +3,9 @@ cd /d "%~dp0"
 echo ========================================================
 echo 🚀 Ticketary Auto-Publisher to GitHub
 echo ========================================================
-git add -A
+git add .
 git commit -m "feat: AI 5-questions auto interview, setup 6 steps with optional category & publish persistence"
-git push https://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@github.com/iamprmgvyt/ticketary.git main
+git push origin main
 echo.
 echo ========================================================
 echo ✅ DONE! Changes published to GitHub successfully.
