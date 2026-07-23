@@ -11,7 +11,8 @@ const {
     ModalBuilder,
     TextInputBuilder,
     TextInputStyle,
-    ChannelType
+    ChannelType,
+    ActivityType
 } = require('discord.js');
 const db = require('./database');
 const { t, emojis } = db;
@@ -298,7 +299,10 @@ module.exports = (client) => {
         console.log(`✅ Logged in as ${client.user.tag}!`);
 
         client.user.setPresence({
-            activities: [{ name: 'ticket support', type: 3 }], 
+            activities: [{ 
+                name: '/help | Ticket Support 🎫', 
+                type: ActivityType.Watching 
+            }], 
             status: 'online',
         });
 
